@@ -64,14 +64,20 @@ void loop()
     
     previous_uid = current_uid;
     delay(800);
- Process p;
- p.runShellCommand("curl -k -X PUT -d '{ \"Location\": \"Kagga\", \"Area\": \"John\", \"CapturedTag\" : "+String(current_uid)+" }' \'https://alex-farm.firebaseio.com/firm.json'");
- while(p.running()); 
  
- delay(2000); 
-// This
-// p.runShellCommand("curl -k 'https://alex-farm.firebaseio.com/test/RandomNbr.json' ");
- while(p.running()); 
+
+ epoch = timeInEpoch();
+    String time = "\"time\":\"" + String(epoch) + "000" + "\"";
+
+    String metrics = "\"area\":" + String(h) + ", \"capturedTag\":" + String(current_uid) + ", \"soil\":" + String(moistureLevel);
+
+    String jsonData = "{" + time + "," + metrics + "}";
+    
+    Serial.println(jsonData);
+
+    Process p;
+    p.runShellCommand("curl -k -X POST " + url + " -d '" + jsonData + "'");
+    while(p.running());
  
  while (p.available()) {
  int result = p.parseInt(); 
@@ -79,5 +85,26 @@ void loop()
  }
  delay(2000); 
 }
+
 }
+
+//Returns a UNIX timestamp 
+unsigned long timeInEpoch() {
+  Process time;                   
+  char epochCharArray[12] = "";
+
+  // Get UNIX timestamp
+  time.begin("date");
+  time.addParameter("+%s");
+  time.run();
+  
+  // When execution is completed, store in charArray
+  while (time.available() > 0) {
+    time.readString().toCharArray(epochCharArray, 12);
+  }
+  
+  // Return long with timestamp
+  return atol(epochCharArray);
+}
+
   

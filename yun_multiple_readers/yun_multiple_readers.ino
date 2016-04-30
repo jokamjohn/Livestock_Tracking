@@ -12,6 +12,9 @@
  * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
  * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           15
  */
+
+ #include <Process.h>
+ 
 bool A = 0;
 bool B = 0;
 bool C = 0;
@@ -35,8 +38,12 @@ bool locationStatus_dip = 0;
 unsigned long current_uid;
 unsigned long previous_uid = 0;
 
+unsigned long epoch; // UNIX timestamp for sensor readings
+
 void setup() {
+    Bridge.begin();
     Serial.begin(9600); // Initialize serial communications with the PC
+    setClock();
     
     pinMode(Ai, INPUT);
     pinMode(Bi, INPUT);
@@ -103,6 +110,26 @@ void loop() {
     
      }*/
      delay(800);
+
+      epoch = timeInEpoch();
+    
+    String time = "\"time\":\"" + String(epoch) + "000" + "\"";
+
+    String url = "https://alex-farm.firebaseio.com/barnArea.json";
+
+    String location = "\"BARN\"";
+
+    String readerOne = "\"Reader 1\"";
+
+    String data = "\"location\":" + String(location) + ", \"capturedTag\":" + String(current_uid) + ", \"Reader\":" + String(readerOne);
+
+    String jsonData = "{" + time + "," + data + "}";
+    
+    Serial.println(jsonData);
+
+    Process p;
+    p.runShellCommand("curl -k -X POST " + url + " -d '" + jsonData + "'");
+    while(p.running());
    
    
 }else if(digitalRead(dipPin)){
@@ -146,8 +173,59 @@ void loop() {
    
   }*/
    delay(800);
+
+   epoch = timeInEpoch();
+    String time = "\"time\":\"" + String(epoch) + "000" + "\"";
+
+    String url = "https://alex-farm.firebaseio.com/dipArea.json";
+
+   String location = "\"DIP\"";
+
+    String readerTwo = "\"Reader 2\"";
+
+    String data = "\"location\":" + String(location) + ", \"capturedTag\":" + String(current_uid) + ", \"Reader\":" + String(readerTwo);
+
+    String jsonData = "{" + time + "," + data + "}";
+    
+    Serial.println(jsonData);
+
+    Process p;
+    p.runShellCommand("curl -k -X POST " + url + " -d '" + jsonData + "'");
+    while(p.running());
        
 } 
+}
+
+// Synchronize clock using NTP
+void setClock() {  
+  Process p;
+  
+  Serial.println("Setting clock.");
+  
+  // Sync clock with NTP
+  p.runShellCommand("ntpd -nqp 0.openwrt.pool.ntp.org");
+  
+  // Block until clock sync is completed - 1433666585 is unix time for 7.6.2015 08:43:05 GMT
+  while(timeInEpoch() < 1433666585);
+}
+
+//Returns a UNIX timestamp 
+unsigned long timeInEpoch() {
+  Process time;                   
+  char epochCharArray[12] = "";
+
+  // Get UNIX timestamp
+  time.begin("date");
+  time.addParameter("+%s");
+  time.run();
+  
+  // When execution is completed, store in charArray
+  while (time.available() > 0) {
+    time.readString().toCharArray(epochCharArray, 12);
+  }
+  
+  // Return long with timestamp
+  return atol(epochCharArray);
 }
    
  
